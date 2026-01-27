@@ -1,0 +1,65 @@
+# Sensíveis
+.env
+*.env
+.env.*
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+venv/
+ENV/
+env/
+.venv/
+
+# Logs
+*.log
+logs/
+bot_*.log
+
+# Temporários
+*.png
+*.jpg
+*.jpeg
+*.gif
+temp/
+tmp/
+downloads/
+*.tmp
+*.bak
+
+# Chrome/Playwright
+chrome_data/
+user_data/
+BotChromeProfile/
+.playwright/
+
+# Estado/Cache
+state_last_seen.txt
+state_*.txt
+*.db
+*.sqlite
+
+# JSON grandes
+*.json
+!package.json
+ml_affiliate_network_dump.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Node (se tiver)
+node_modules/
