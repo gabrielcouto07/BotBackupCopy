@@ -1,69 +1,40 @@
-# config.py - CONFIGURAÇÃO FINAL
+import os
 
-# ====================================
-# 🔥 3 SOURCES → 1 TARGET
-# ====================================
-CHANNEL_PAIRS = [
-    ("Herói da Promo #731", "Super Promos", "Herói → Super Promos"),
-    ("Home Deals [12]", "Super Promos", "Home Deals → Super Promos"),
-    ("Tech Deals 🎯 [20]", "Super Promos", "Tech Deals → Super Promos"),
-]
+CHROME_USER_DATA_DIR = "C:\\BotChromeProfile"
+CHROME_PROFILE_DIR_NAME = "Default"
+HEADLESS = True
 
-# ====================================
-# 🔗 LINK DO GRUPO
-# ====================================
-GROUP_LINKS = {
-    "Super Promos": "https://chat.whatsapp.com/GCLG0St2zFqDJvC51o5V5X",
-}
+DOWNLOAD_DIR = "./tmp"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# ====================================
-# 🛒 MERCADO LIVRE - TAG CORRETA
-# ====================================
 MELI_AFFILIATE_TAG = "silvagabriel20230920180155"
 
-# ====================================
-# 📁 PASTAS
-# ====================================
-DOWNLOAD_DIR = "./tmp"
+SUPERHERO_EMOJI = "🦸"
 
-# ====================================
-# ⏱️ INTERVALOS
-# ====================================
-POLL_SECONDS = 180  # ✅ 3 MINUTOS (não 5)
-MESSAGE_DELAY = 2
+GATILHOS = [
+    "⚡ CORRE!",
+    "🔥 OFERTA IMPERDÍVEL!",
+    "💰 PREÇO NUNCA VISTO!",
+    "⏰ ÚLTIMAS UNIDADES!",
+    "🎯 NESSE PREÇO NUNCA!",
+    "💥 ACABANDO!",
+]
+GATILHO_CHANCE = 0.20
+
 BUBBLE_REFRESH_DELAY = 2
 
-# ====================================
-# 🌙 MODO NOTURNO
-# ====================================
+POLL_SECONDS = 180
+
 NIGHT_MODE_ENABLED = True
 NIGHT_START_HOUR = 1
 NIGHT_END_HOUR = 8
 
-# ====================================
-# 🔧 CHROME
-# ====================================
-CHROME_USER_DATA_DIR = r"C:\BotChromeProfile"
-CHROME_PROFILE_DIR_NAME = "Default"
-
-# ====================================
-# 🎭 MODO
-# ====================================
-HEADLESS = False
-
-# ====================================
-# 🎯 GATILHOS
-# ====================================
-SUPERHERO_EMOJI = "🦸"
-
-GATILHOS = [
-    "🔥 CORRA!",
-    "⚡ OFERTA IMPERDÍVEL!",
-    "💥 NESSE PREÇO NUNCA!",
-    "🎯 APROVEITA!",
-    "⚡ ÚLTIMA UNIDADE!",
-    "💰 PREÇO DE LOUCO!",
-    "🚨 PROMOÇÃO RELÂMPAGO!",
+CHANNEL_PAIRS = [
+    ("Herói da Promo #731", "Super Promos", "Herói da Promo"),
+    ("Home Deals [12]", "Super Promos", "Home Deals"),
+    ("Tech Deals 🎯 [20]", "Super Promos", "Tech Deals"),
 ]
 
-GATILHO_CHANCE = 0.20
+GROUP_LINKS = {
+    "Super Promos": "https://chat.whatsapp.com/GCLg0s12zFqDJvC51o5V5X",
+}
