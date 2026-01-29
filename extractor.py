@@ -7,6 +7,11 @@ ML_SEC_RE = re.compile(
     re.IGNORECASE,
 )
 
+AMAZON_RE = re.compile(
+    r"https?://(?:(?:www|m|smile)\.)?(?:amazon\.[a-z.]{2,}|amzn\.to)/[^\s]+",
+    re.IGNORECASE,
+)
+
 URL_RE = re.compile(r"https?://[^\s)>\]]+", re.IGNORECASE)
 
 def cut_text_after_first_meli_link(text: str) -> str:
@@ -138,3 +143,16 @@ def format_old_price_with_strikethrough(text: str) -> str:
     )
     
     return text
+
+def filter_amazon_urls(urls: list[str]) -> list[str]:
+    """Filtra apenas URLs da Amazon"""
+    if not urls:
+        return []
+    
+    amazon_urls = []
+    
+    for url in urls:
+        if AMAZON_RE.match(url):
+            amazon_urls.append(url)
+    
+    return amazon_urls

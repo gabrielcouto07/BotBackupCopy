@@ -13,6 +13,8 @@ from config import (
     DOWNLOAD_DIR,
     MELI_AFFILIATE_TAG,
     CHROME_USER_DATA_DIR,
+    AMAZON_AFFILIATE_TAG,
+    AMAZON_ENABLED,  
     CHROME_PROFILE_DIR_NAME,
     HEADLESS,
     SUPERHERO_EMOJI,
@@ -37,9 +39,10 @@ from watcher import (
 from extractor import (
     extract_urls_from_text,
     replace_urls_in_text,
+    filter_amazon_urls, 
     format_old_price_with_strikethrough,
 )
-from affiliate import generate_affiliate_link
+from affiliate import generate_affiliate_link, generate_amazon_affiliate_link_async 
 from sender_whatsapp import send_image_with_caption
 from storage import get_last_seen as load_last_seen, save_last_seen
 
@@ -202,24 +205,51 @@ async def process_new_message(
     if not urls:
         urls = extract_urls_from_text(text)
 
+    # ========================================
+    # 🔥 DETECTAR MERCADO LIVRE OU AMAZON
+    # ========================================
     meli_urls = filter_meli_sec_urls(urls)
-    if not meli_urls:
-        logger.warning(f"   ⚠️  {source_name}: Sem link /sec/ ML - IGNORANDO")
+    amazon_urls = filter_amazon_urls(urls) if AMAZON_ENABLED else []
+    
+    mapping = {}
+    product_url = None
+    platform = None  # 'ML' ou 'AMAZON'
+    
+    # Prioridade: Mercado Livre primeiro
+    if meli_urls:
+        platform = "ML"
+        for u in meli_urls[:3]:
+            logger.info(f"   🔗 [ML] Gerando afiliado para: {u[:60]}...")
+            new_u, prod_url = await generate_affiliate_link(page_m, u, MELI_AFFILIATE_TAG)
+            if new_u:
+                mapping[u] = new_u
+                product_url = prod_url
+                logger.info(f"   ✅ [ML] Gerado: {new_u[:60]}...")
+                break
+    
+    # Se não tem ML, tenta Amazon
+    elif amazon_urls:
+        platform = "AMAZON"
+        for u in amazon_urls[:3]:
+            logger.info(f"   🔗 [AMAZON] Gerando afiliado para: {u[:60]}...")
+            new_u, prod_url = await generate_amazon_affiliate_link_async(
+                page_m, u, AMAZON_AFFILIATE_TAG
+            )
+            if new_u:
+                mapping[u] = new_u
+                product_url = prod_url
+                logger.info(f"   ✅ [AMAZON] Gerado: {new_u[:60]}...")
+                break
+    
+    else:
+        logger.warning(f"   ⚠️  {source_name}: Sem link ML ou Amazon - IGNORANDO")
         return True
 
-    mapping = {}
-    for u in meli_urls[:3]:
-        logger.info(f"   🔗 Gerando afiliado para: {u[:60]}...")
-        new_u, prod_url = await generate_affiliate_link(page_m, u, MELI_AFFILIATE_TAG)
-        if new_u:
-            mapping[u] = new_u
-            logger.info(f"   ✅ Gerado: {new_u[:60]}...")
-            break
-
     if not mapping:
-        logger.error(f"   ❌ {source_name}: Falha ao gerar afiliado")
+        logger.error(f"   ❌ {source_name}: Falha ao gerar afiliado [{platform}]")
         return False
 
+    # ... resto do código continua IGUAL (formatação, envio, etc)
     enhanced_text = process_text_enhancements(text)
     new_text = replace_urls_in_text(enhanced_text, mapping)
     new_text = format_old_price_with_strikethrough(new_text)
