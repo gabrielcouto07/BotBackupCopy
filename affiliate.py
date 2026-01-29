@@ -4,8 +4,7 @@ import asyncio
 import json
 import re
 from pathlib import Path
-import re
-from urllib.parse import urlparse, urlunparse, urlencode, parse_qs
+
 from playwright.async_api import TimeoutError as PWTimeout
 
 API_CREATE_LINK = (
@@ -16,21 +15,6 @@ ML_SEC_RE = re.compile(
     r"https?://[\w.-]*mercadolivre\.com(?:\.br)?/sec/[A-Za-z0-9]+",
     re.IGNORECASE,
 )
-
-ASIN_RE_LIST = [
-    re.compile(r"/dp/([A-Z0-9]{10})(?:[/?]|$)", re.IGNORECASE),
-    re.compile(r"/gp/product/([A-Z0-9]{10})(?:[/?]|$)", re.IGNORECASE),
-    re.compile(r"/product/([A-Z0-9]{10})(?:[/?]|$)", re.IGNORECASE),
-    re.compile(r"/ASIN/([A-Z0-9]{10})(?:[/?]|$)", re.IGNORECASE),
-    re.compile(r"/exec/obidos/ASIN/([A-Z0-9]{10})(?:[/?]|$)", re.IGNORECASE),
-]
-
-AMAZON_RE = re.compile(
-    r"https?://(?:(?:www|m|smile)\.)?(?:amazon\.[a-z.]{2,}|amzn\.to)/[^\s]+",
-    re.IGNORECASE,
-)
-
-AMZN_SHORT_RE = re.compile(r"https?://(?:amzn\.to)/", re.IGNORECASE)
 
 # 🔥 FIX: Cache de CSRF com Lock para evitar race condition
 _CACHED_CSRF: str | None = None
@@ -331,122 +315,6 @@ async def generate_affiliate_link(
 
     return None, None
 
-def _extract_asin_from_url(u: str) -> str | None:
-    if not u:
-        return None
-    for rgx in ASIN_RE_LIST:
-        m = rgx.search(u)
-        if m:
-            return m.group(1).upper()
-    return None
-
-async def _extract_asin_from_page_dom(page) -> str | None:
-    """
-    Fallback quando a Amazon não deixa o ASIN claro no URL.
-    Tenta pegar no HTML: inputs/meta/dados estruturados.
-    """
-    try:
-        asin = await page.evaluate(
-            """
-            () => {
-              // 1) input hidden comum
-              const i = document.querySelector('input#ASIN, input[name="ASIN"]');
-              if (i && i.value && i.value.length === 10) return i.value;
-
-              // 2) data-asin em alguns templates
-              const el = document.querySelector('[data-asin]');
-              if (el && el.getAttribute('data-asin') && el.getAttribute('data-asin').length === 10)
-                return el.getAttribute('data-asin');
-
-              // 3) meta tag às vezes aparece
-              const meta = document.querySelector('meta[name="ASIN"]');
-              if (meta && meta.content && meta.content.length === 10) return meta.content;
-
-              // 4) procura por "ASIN":"XXXXXXXXXX" no HTML
-              const html = document.documentElement ? document.documentElement.innerHTML : '';
-              const m = html.match(/"ASIN"\\s*:\\s*"([A-Z0-9]{10})"/i);
-              return m ? m[1] : null;
-            }
-            """
-        )
-        if asin and isinstance(asin, str) and len(asin) == 10:
-            return asin.upper()
-    except Exception:
-        pass
-    return None
-
-def _build_canonical_amazon_url(netloc: str, asin: str, tag: str) -> str:
-    # canônico padrão
-    base = f"https://{netloc}/dp/{asin}/"
-    return f"{base}?{urlencode({'tag': tag})}"
-
-def _fallback_replace_tag(original_url: str, tag: str) -> str:
-    """
-    Se falhar ASIN, pelo menos substitui/adiciona tag no query.
-    """
-    parsed = urlparse(original_url)
-    q = parse_qs(parsed.query)
-    q["tag"] = [tag]
-    # limpa lixo comum
-    for k in ["ref", "ref_", "pf_rd_r", "pf_rd_p", "pd_rd_r", "pd_rd_w", "qid", "sr", "sprefix", "keywords"]:
-        q.pop(k, None)
-    new_query = urlencode(q, doseq=True)
-    return urlunparse(parsed._replace(query=new_query))
-
-async def generate_amazon_affiliate_link_async(page_m, original_url: str, tag: str) -> tuple[str | None, str | None]:
-    """
-    Retorna (link_afiliado, product_url_resolvida)
-    - Resolve redirects (amzn.to etc)
-    - Extrai ASIN do URL final ou do DOM
-    - Reconstrói URL canônica /dp/ASIN?tag=...
-    """
-    original_url = (original_url or "").strip()
-    tag = (tag or "").strip()
-
-    if not original_url or not tag:
-        return None, None
-
-    # 1) tenta extrair ASIN direto
-    asin = _extract_asin_from_url(original_url)
-    parsed = urlparse(original_url)
-    netloc = parsed.netloc or "www.amazon.com.br"
-
-    # 2) se for amzn.to OU não achou ASIN, resolve navegando
-    resolved_url = original_url
-    if AMZN_SHORT_RE.search(original_url) or not asin:
-        try:
-            print(f" → [AMAZON] Resolvendo redirect/URL final: {original_url[:80]}...")
-            await page_m.goto(original_url, wait_until="domcontentloaded", timeout=60000)
-            await page_m.wait_for_timeout(1500)
-
-            resolved_url = page_m.url
-            print(f" → [AMAZON] URL resolvida: {resolved_url[:120]}")
-
-            asin = _extract_asin_from_url(resolved_url)
-            if not asin:
-                asin = await _extract_asin_from_page_dom(page_m)
-
-            p2 = urlparse(resolved_url)
-            if p2.netloc:
-                netloc = p2.netloc
-
-        except Exception as e:
-            print(f" ⚠️ [AMAZON] Falha ao resolver no navegador: {e}")
-
-    # 3) se achou ASIN, monta canônico
-    if asin:
-        affiliate = _build_canonical_amazon_url(netloc, asin, tag)
-        print(f" ✓ [AMAZON] ASIN={asin} | Link canônico: {affiliate[:100]}...")
-        return affiliate, resolved_url
-
-    # 4) fallback: troca tag no query (melhor que nada)
-    try:
-        affiliate = _fallback_replace_tag(resolved_url, tag)
-        print(f" ⚠️ [AMAZON] Sem ASIN, usando fallback tag-query: {affiliate[:100]}...")
-        return affiliate, resolved_url
-    except Exception as e:
-        print(f" ✗ [AMAZON] Falha total ao gerar link: {e}")
-        return None, resolved_url
 
 async def download_product_image(
     page, product_url: str, out_dir: str = "./tmp"
@@ -508,5 +376,3 @@ async def download_product_image(
     except Exception as e:
         print(f" ✗ Erro ao baixar imagem: {e}")
         return None
-    
-    
