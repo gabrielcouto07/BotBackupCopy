@@ -43,6 +43,7 @@ BotChromeProfile/
 # Estado/Cache
 state_last_seen.txt
 state_*.txt
+dedup_cache.txt
 *.db
 *.sqlite
 
@@ -60,6 +61,3 @@ ml_affiliate_network_dump.json
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-# Node (se tiver)
-node_modules/

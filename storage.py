@@ -1,22 +1,19 @@
-# storage.py
+# storage.py - Persistência do último ID de mensagem por grupo
 
 import os
-
 
 STATE_FILE = "state_last_seen.txt"
 
 
 def get_last_seen(group_name: str) -> str:
-    """
-    Carrega o último ID de mensagem visto de um grupo específico.
-    Retorna: ID da última mensagem ou string vazia se não existir.
-    """
+    """Carrega o último ID de mensagem visto de um grupo"""
     if not os.path.exists(STATE_FILE):
         return ""
 
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             lines = f.readlines()
+        
         for line in lines:
             if "|" in line:
                 parts = line.strip().split("|")
@@ -32,14 +29,7 @@ def get_last_seen(group_name: str) -> str:
 
 
 def save_last_seen(msg_id: str, group_name: str, message_preview: str = ""):
-    """
-    Salva o ID da última mensagem processada de um grupo.
-
-    Args:
-        msg_id: Hash SHA256 da mensagem (texto + URLs)
-        group_name: Nome do grupo source
-        message_preview: Primeiros 50 chars da mensagem (opcional)
-    """
+    """Salva o ID da última mensagem processada de um grupo"""
     existing_data = {}
 
     if os.path.exists(STATE_FILE):

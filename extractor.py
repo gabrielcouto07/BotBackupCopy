@@ -1,16 +1,37 @@
-# extractor.py
+# extractor.py - Processamento de texto e URLs
 
 import re
 
+# Regex para URLs
 ML_SEC_RE = re.compile(
     r"(https?://[\w.-]*mercadolivre\.com(?:\.br)?/sec/[A-Za-z0-9]+)",
     re.IGNORECASE,
 )
 
+AMAZON_RE = re.compile(
+    r"https?://(?:(?:www|m|smile)\.)?(?:amazon\.[a-z.]{2,}|amzn\.to)/[^\s]+",
+    re.IGNORECASE,
+)
+
 URL_RE = re.compile(r"https?://[^\s)>\]]+", re.IGNORECASE)
 
+
+def remove_text_formatting(text: str) -> str:
+    """Remove formatações do WhatsApp: *negrito*, _itálico_, ~cortado~, `código`"""
+    if not text:
+        return ""
+    
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)
+    text = re.sub(r'_([^_]+)_', r'\1', text)
+    text = re.sub(r'~([^~]+)~', r'\1', text)
+    text = re.sub(r'```([^`]*)```', r'\1', text)
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    
+    return text
+
+
 def cut_text_after_first_meli_link(text: str) -> str:
-    """Corta TUDO após o link ML (remove 'Link do grupo:', '☑️', etc)"""
+    """Corta o texto após o link do Mercado Livre"""
     if not text:
         return ""
     
@@ -67,13 +88,7 @@ def filter_meli_sec_urls(urls: list[str]) -> list[str]:
     if not urls:
         return []
     
-    meli_urls = []
-    
-    for url in urls:
-        if ML_SEC_RE.match(url):
-            meli_urls.append(url)
-    
-    return meli_urls
+    return [url for url in urls if ML_SEC_RE.match(url)]
 
 
 def replace_urls_in_text(text: str, mapping: dict[str, str]) -> str:
@@ -82,7 +97,6 @@ def replace_urls_in_text(text: str, mapping: dict[str, str]) -> str:
         return text or ""
     
     result = text
-    
     for old_url, new_url in mapping.items():
         result = result.replace(old_url, new_url)
     
@@ -90,47 +104,25 @@ def replace_urls_in_text(text: str, mapping: dict[str, str]) -> str:
 
 
 def process_text_enhancements(text: str) -> str:
-    """
-    Processa texto para melhorias visuais
-    (Por enquanto retorna o texto como está, mas pode adicionar emojis, formatação, etc)
-    """
+    """Processa texto para melhorias visuais"""
     if not text:
         return text
-    
-    # Aqui você pode adicionar processamentos extras:
-    # - Adicionar emojis
-    # - Formatar títulos
-    # - Destacar ofertas
-    
-    # Por enquanto, apenas retorna o texto original
     return text
 
 
 def format_old_price_with_strikethrough(text: str) -> str:
-    """
-    Detecta preço antigo (geralmente antes de "por" ou em linhas separadas)
-    e adiciona ~ antes e depois para criar efeito riscado no WhatsApp.
-    
-    Padrões comuns:
-    - "R$ 100,00" seguido de "por R$ 80,00"
-    - Linha com "De: R$ 100" seguida de "Por: R$ 80"
-    - "R$ 100" em uma linha e "R$ 80" na próxima
-    """
+    """Adiciona ~riscado~ no preço antigo para WhatsApp"""
     if not text:
         return text
     
-    # Padrão para detectar preços brasileiros: R$ 123,45 ou R$ 1.234,56
     price_pattern = r'(R\$\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?)'
     
-    # Padrão 1: "De R$ X" ou "de R$ X" (marca como preço antigo)
     text = re.sub(
         r'(\b[Dd]e:?\s*)' + price_pattern,
         r'\1~\2~',
         text
     )
     
-    # Padrão 2: Preço seguido de "por" (o primeiro é o antigo)
-    # Ex: "R$ 100,00 por R$ 80,00" -> "~R$ 100,00~ por R$ 80,00"
     text = re.sub(
         price_pattern + r'(\s+[Pp]or\s+)' + price_pattern,
         r'~\1~\2\3',
@@ -138,3 +130,11 @@ def format_old_price_with_strikethrough(text: str) -> str:
     )
     
     return text
+
+
+def filter_amazon_urls(urls: list[str]) -> list[str]:
+    """Filtra apenas URLs da Amazon"""
+    if not urls:
+        return []
+    
+    return [url for url in urls if AMAZON_RE.match(url)]
