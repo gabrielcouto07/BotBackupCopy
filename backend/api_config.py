@@ -123,8 +123,8 @@ def write_config_file(config):
         f'SLEEP_GRANULARITY_SECONDS = {config.get("SLEEP_GRANULARITY_SECONDS", 5)}',
         "",
         f'NIGHT_MODE_ENABLED = {config.get("NIGHT_MODE_ENABLED", True)}',
-        f'NIGHT_START_HOUR = {config.get("NIGHT_START_HOUR", 1)}',
-        f'NIGHT_END_HOUR = {config.get("NIGHT_END_HOUR", 8)}',
+        f'NIGHT_START_HOUR = {config.get("NIGHT_START_HOUR", 21)}',
+        f'NIGHT_END_HOUR = {config.get("NIGHT_END_HOUR", 9)}',
         "",
         "CHANNEL_PAIRS = [",
     ])
@@ -157,8 +157,14 @@ def get_config():
     """Retorna as configurações atuais"""
     try:
         config = parse_config_file()
+        print(f"\n✅ Configurações carregadas do config.py:")
+        print(f"   - GATILHOS: {len(config.get('GATILHOS', []))} itens")
+        print(f"   - CHANNEL_PAIRS: {len(config.get('CHANNEL_PAIRS', []))} pares")
+        print(f"   - GROUP_LINKS: {len(config.get('GROUP_LINKS', {}))} links")
+        print(f"   - Tag afiliado: {config.get('MELI_AFFILIATE_TAG', 'N/A')}\n")
         return jsonify({'success': True, 'config': config})
     except Exception as e:
+        print(f"\n❌ Erro ao carregar configurações: {str(e)}\n")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

@@ -21,11 +21,16 @@ function App() {
   const loadConfig = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Carregando configurações do config.py...');
       const response = await axios.get(`${API_URL}/config`);
       if (response.data.success) {
         setConfig(response.data.config);
+        console.log('✅ Configurações carregadas:', response.data.config);
+        setMessage({ type: 'success', text: '✅ Configurações carregadas do config.py!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       }
     } catch (error) {
+      console.error('❌ Erro ao carregar:', error);
       setMessage({ type: 'error', text: 'Erro ao carregar configurações: ' + error.message });
     } finally {
       setLoading(false);
