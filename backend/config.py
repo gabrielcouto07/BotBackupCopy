@@ -36,11 +36,16 @@ NIGHT_START_HOUR = 21
 NIGHT_END_HOUR = 9
 
 CHANNEL_PAIRS = [
-    ("Herói da Promo #731", "Super Promos", "Herói da Promo"),
-    ("Home Deals [12]", "Super Promos", "Home Deals"),
-    ("Tech Deals 🎯 [20]", "Super Promos", "Tech Deals"),
+    ("Tech Deals 🎯 [01]", "Promo Codes [10] - Promoções e Cupons", ""),
+    ("Home Deals [12]", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
+    ("Rafa Shop", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
+    ("Parfum Deals 👔 [11]", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
+    ("Guerra Deals Fit [112]", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
+    ("Tech Promos", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
+    ("Guerra Deals Fit [73]", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
+    ("Super Promos [21]", "Promo Codes [10] - Promoções e Cupons", "Teste de Funcionalidades"),
 ]
 
 GROUP_LINKS = {
-    "Super Promos": "https://chat.whatsapp.com/GCLg0s12zFqDJvC51o5V5X",
+    "Promo Codes [10] - Promoções e Cupons": "https://chat.whatsapp.com/GCLG0St2zFqDJvC51o5V5X",
 }

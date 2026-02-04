@@ -68,19 +68,24 @@ def parse_config_file():
         gatilhos = re.findall(r'["\'](.+?)["\']', gatilhos_str)
         config['GATILHOS'] = gatilhos
     
-    # Extrai CHANNEL_PAIRS
+    # Extrai CHANNEL_PAIRS - suporta strings vazias e caracteres especiais
     channel_pairs_match = re.search(r'CHANNEL_PAIRS\s*=\s*\[(.*?)\]', content, re.DOTALL)
     if channel_pairs_match:
         pairs_str = channel_pairs_match.group(1)
-        pairs = re.findall(r'\(["\'](.+?)["\']\s*,\s*["\'](.+?)["\']\s*,\s*["\'](.+?)["\']\)', pairs_str)
+        # Regex melhorada para capturar strings com emojis, espaços, colchetes, etc
+        # Captura cada string entre aspas (simples ou duplas), incluindo strings vazias
+        pairs = re.findall(r'\(\s*["\']([^"\']*?)["\'],\s*["\']([^"\']*?)["\'],\s*["\']([^"\']*?)["\']\s*\)', pairs_str)
         config['CHANNEL_PAIRS'] = [{'source': p[0], 'target': p[1], 'description': p[2]} for p in pairs]
+        print(f"   DEBUG: Encontrados {len(pairs)} pares de canais")
     
-    # Extrai GROUP_LINKS
+    # Extrai GROUP_LINKS - melhorado para suportar caracteres especiais
     group_links_match = re.search(r'GROUP_LINKS\s*=\s*\{(.*?)\}', content, re.DOTALL)
     if group_links_match:
         links_str = group_links_match.group(1)
-        links = re.findall(r'["\'](.+?)["\']\s*:\s*["\'](.+?)["\']', links_str)
+        # Captura strings com colchetes, hífens, emojis, etc
+        links = re.findall(r'["\']([^"\']+?)["\']\s*:\s*["\']([^"\']+?)["\']', links_str)
         config['GROUP_LINKS'] = {k: v for k, v in links}
+        print(f"   DEBUG: Encontrados {len(links)} links de grupos")
     
     return config
 
