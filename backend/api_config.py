@@ -19,10 +19,18 @@ bot_process = None  # Rastreia o processo do bot
 def parse_config_file():
     """Lê o arquivo config.py e extrai as configurações"""
     if not CONFIG_FILE.exists():
+        print(f"❌ ERRO: Arquivo {CONFIG_FILE} não encontrado!")
         return {}
     
-    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-        content = f.read()
+    print(f"\n📖 Lendo arquivo: {CONFIG_FILE}")
+    
+    try:
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            content = f.read()
+        print(f"✅ Arquivo lido com sucesso ({len(content)} caracteres)")
+    except Exception as e:
+        print(f"❌ Erro ao ler arquivo: {e}")
+        return {}
     
     config = {}
     
@@ -72,20 +80,42 @@ def parse_config_file():
     channel_pairs_match = re.search(r'CHANNEL_PAIRS\s*=\s*\[(.*?)\]', content, re.DOTALL)
     if channel_pairs_match:
         pairs_str = channel_pairs_match.group(1)
+        print(f"\n=== DEBUG CHANNEL_PAIRS ===")
+        print(f"Texto capturado:\n{pairs_str[:200]}...")
+        
         # Regex melhorada para capturar strings com emojis, espaços, colchetes, etc
         # Captura cada string entre aspas (simples ou duplas), incluindo strings vazias
         pairs = re.findall(r'\(\s*["\']([^"\']*?)["\'],\s*["\']([^"\']*?)["\'],\s*["\']([^"\']*?)["\']\s*\)', pairs_str)
+        
+        print(f"Pares encontrados: {len(pairs)}")
+        for i, p in enumerate(pairs):
+            print(f"  [{i+1}] source='{p[0]}', target='{p[1]}', desc='{p[2]}'")
+        print(f"===========================\n")
+        
         config['CHANNEL_PAIRS'] = [{'source': p[0], 'target': p[1], 'description': p[2]} for p in pairs]
-        print(f"   DEBUG: Encontrados {len(pairs)} pares de canais")
+    else:
+        print(f"\n⚠️ WARNING: CHANNEL_PAIRS não encontrado no config.py!\n")
+        config['CHANNEL_PAIRS'] = []
     
     # Extrai GROUP_LINKS - melhorado para suportar caracteres especiais
     group_links_match = re.search(r'GROUP_LINKS\s*=\s*\{(.*?)\}', content, re.DOTALL)
     if group_links_match:
         links_str = group_links_match.group(1)
+        print(f"\n=== DEBUG GROUP_LINKS ===")
+        print(f"Texto capturado:\n{links_str}")
+        
         # Captura strings com colchetes, hífens, emojis, etc
         links = re.findall(r'["\']([^"\']+?)["\']\s*:\s*["\']([^"\']+?)["\']', links_str)
+        
+        print(f"Links encontrados: {len(links)}")
+        for k, v in links:
+            print(f"  '{k}' -> '{v}'")
+        print(f"=========================\n")
+        
         config['GROUP_LINKS'] = {k: v for k, v in links}
-        print(f"   DEBUG: Encontrados {len(links)} links de grupos")
+    else:
+        print(f"\n⚠️ WARNING: GROUP_LINKS não encontrado no config.py!\n")
+        config['GROUP_LINKS'] = {}
     
     return config
 
