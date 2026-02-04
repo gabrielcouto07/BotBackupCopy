@@ -68,15 +68,32 @@ def parse_config_file():
         gatilhos = re.findall(r'["\'](.+?)["\']', gatilhos_str)
         config['GATILHOS'] = gatilhos
     
-    # Extrai CHANNEL_PAIRS - suporta strings vazias e caracteres especiais
-    channel_pairs_match = re.search(r'CHANNEL_PAIRS\s*=\s*\[(.*?)\]', content, re.DOTALL)
+    # Extrai CHANNEL_PAIRS - VERSÃO MELHORADA para emojis e Unicode
+    channel_pairs_match = re.search(r'CHANNEL_PAIRS\s*=\s*\[(.*?)\n\]', content, re.DOTALL)
     if channel_pairs_match:
         pairs_str = channel_pairs_match.group(1)
-        # Regex melhorada para capturar strings com emojis, espaços, colchetes, etc
-        # Captura cada string entre aspas (simples ou duplas), incluindo strings vazias
-        pairs = re.findall(r'\(\s*["\']([^"\']*?)["\'],\s*["\']([^"\']*?)["\'],\s*["\']([^"\']*?)["\']\s*\)', pairs_str)
-        config['CHANNEL_PAIRS'] = [{'source': p[0], 'target': p[1], 'description': p[2]} for p in pairs]
-        print(f"   DEBUG: Encontrados {len(pairs)} pares de canais")
+    
+    # Procura por padrão: ("texto1", "texto2", "texto3"),
+    # Onde texto pode ter QUALQUER coisa (emojis, colchetes, etc)
+    pairs = re.findall(
+        r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)',
+        pairs_str
+    )
+    
+    if not pairs:  # Fallback: tenta com aspas simples
+        pairs = re.findall(
+            r"\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)",
+            pairs_str
+        )
+    
+    config['CHANNEL_PAIRS'] = [
+        {'source': p[0], 'target': p[1], 'description': p[2]} 
+        for p in pairs
+    ]
+    
+    print(f"   DEBUG: Encontrados {len(pairs)} pares de canais")
+    for i, p in enumerate(pairs):
+        print(f"     Par {i+1}: '{p[0]}' → '{p[1]}' ({p[2]})")
     
     # Extrai GROUP_LINKS - melhorado para suportar caracteres especiais
     group_links_match = re.search(r'GROUP_LINKS\s*=\s*\{(.*?)\}', content, re.DOTALL)
@@ -91,13 +108,15 @@ def parse_config_file():
 
 
 def write_config_file(config):
-    """Escreve as configurações de volta no config.py"""
+    """Escreve as configurações de volta no config.py preservando emojis e caracteres especiais"""
+    chrome_default_path = "C:\\\\BotChromeProfile"
+    
     lines = [
         "import os",
         "",
-        f'CHROME_USER_DATA_DIR = "{config.get("CHROME_USER_DATA_DIR", "C:\\\\BotChromeProfile")}"',
+        f'CHROME_USER_DATA_DIR = "{config.get("CHROME_USER_DATA_DIR", chrome_default_path)}"',
         f'CHROME_PROFILE_DIR_NAME = "{config.get("CHROME_PROFILE_DIR_NAME", "Default")}"',
-        f'HEADLESS = {config.get("HEADLESS", True)}',
+        f'HEADLESS = {config.get("HEADLESS", False)}',
         "",
         f'DOWNLOAD_DIR = "{config.get("DOWNLOAD_DIR", "./tmp")}"',
         "os.makedirs(DOWNLOAD_DIR, exist_ok=True)",
@@ -111,7 +130,9 @@ def write_config_file(config):
     
     # Adiciona gatilhos
     for gatilho in config.get('GATILHOS', []):
-        lines.append(f'    "{gatilho}",')
+        # Escapa caracteres especiais mas preserva emojis
+        gatilho_escaped = gatilho.replace('\\', '\\\\').replace('"', '\\"')
+        lines.append(f'    "{gatilho_escaped}",')
     
     lines.extend([
         "]",
@@ -128,17 +149,21 @@ def write_config_file(config):
         f'SLEEP_GRANULARITY_SECONDS = {config.get("SLEEP_GRANULARITY_SECONDS", 5)}',
         "",
         f'NIGHT_MODE_ENABLED = {config.get("NIGHT_MODE_ENABLED", True)}',
-        f'NIGHT_START_HOUR = {config.get("NIGHT_START_HOUR", 21)}',
-        f'NIGHT_END_HOUR = {config.get("NIGHT_END_HOUR", 9)}',
+        f'NIGHT_START_HOUR = {config.get("NIGHT_START_HOUR", 1)}',
+        f'NIGHT_END_HOUR = {config.get("NIGHT_END_HOUR", 8)}',
         "",
         "CHANNEL_PAIRS = [",
     ])
     
-    # Adiciona channel pairs
+    # 🔥 CORREÇÃO: Adiciona channel pairs preservando caracteres especiais
     for pair in config.get('CHANNEL_PAIRS', []):
-        source = pair.get('source', '')
-        target = pair.get('target', '')
-        description = pair.get('description', '')
+        source = pair.get('source', '').replace('\\', '\\\\').replace('"', '\\"')
+        target = pair.get('target', '').replace('\\', '\\\\').replace('"', '\\"')
+        description = pair.get('description', '').replace('\\', '\\\\').replace('"', '\\"')
+        
+        # Debug: mostra o que está salvando
+        print(f"   Salvando par: '{source}' → '{target}' ({description})")
+        
         lines.append(f'    ("{source}", "{target}", "{description}"),')
     
     lines.append("]")
@@ -147,14 +172,19 @@ def write_config_file(config):
     
     # Adiciona group links
     for group_name, link in config.get('GROUP_LINKS', {}).items():
-        lines.append(f'    "{group_name}": "{link}",')
+        group_escaped = group_name.replace('\\', '\\\\').replace('"', '\\"')
+        link_escaped = link.replace('\\', '\\\\').replace('"', '\\"')
+        lines.append(f'    "{group_escaped}": "{link_escaped}",')
     
     lines.append("}")
     
     content = "\n".join(lines)
     
+    # 🔥 IMPORTANTE: Salva com encoding UTF-8 para preservar emojis
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         f.write(content)
+    
+    print(f"\n✅ Config salvo com {len(config.get('CHANNEL_PAIRS', []))} pares de canais\n")
 
 
 @app.route('/api/config', methods=['GET'])
