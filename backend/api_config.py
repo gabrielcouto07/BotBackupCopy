@@ -5,6 +5,7 @@ from flask_cors import CORS
 import json
 import re
 import subprocess
+import sys
 import os
 from pathlib import Path
 
@@ -12,6 +13,7 @@ app = Flask(__name__)
 CORS(app)  # Permite requisições do React
 
 CONFIG_FILE = Path(__file__).parent / "config.py"
+bot_process = None  # Rastreia o processo do bot
 
 
 def parse_config_file():
@@ -180,7 +182,12 @@ def health():
 @app.route('/api/start-bot', methods=['POST'])
 def start_bot():
     """Inicia a execução do bot"""
+    global bot_process
     try:
+        # Verifica se já existe um bot rodando
+        if bot_process and bot_process.poll() is None:
+            return jsonify({'success': False, 'error': 'Bot já está rodando. Pare-o antes de iniciar novamente.'}), 400
+        
         # Caminho para o arquivo principal do bot
         bot_file = Path(__file__).parent / "run_bot.pyw"
         
@@ -188,14 +195,69 @@ def start_bot():
             return jsonify({'success': False, 'error': 'Arquivo run_bot.pyw não encontrado'}), 404
         
         # Inicia o bot em um processo separado
-        subprocess.Popen(['pythonw', str(bot_file)], 
-                        cwd=str(bot_file.parent),
-                        creationflags=subprocess.CREATE_NO_WINDOW)
+        if sys.platform == 'win32':
+            # Windows: usa pythonw para não abrir console
+            CREATE_NO_WINDOW = 0x08000000
+            bot_process = subprocess.Popen(['pythonw', str(bot_file)], 
+                            cwd=str(bot_file.parent),
+                            creationflags=CREATE_NO_WINDOW)
+        else:
+            # Linux/Mac: usa python normal em background
+            bot_process = subprocess.Popen(['python3', str(bot_file)], 
+                            cwd=str(bot_file.parent))
         
         return jsonify({'success': True, 'message': 'Bot iniciado com sucesso!'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/stop-bot', methods=['POST'])
+def stop_bot():
+    """Para a execução do bot"""
+    global bot_process
+    try:
+        if bot_process is None:
+            return jsonify({'success': False, 'error': 'Nenhum bot está rodando.'}), 400
+        
+        # Verifica se o processo ainda está ativo
+        if bot_process.poll() is not None:
+            bot_process = None
+            return jsonify({'success': False, 'error': 'O bot já foi encerrado.'}), 400
+        
+        # Termina o processo
+        bot_process.terminate()
+        
+        # Aguarda até 5 segundos para finalizar graciosamente
+        try:
+            bot_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            # Se não finalizar, força o encerramento
+            bot_process.kill()
+            bot_process.wait()
+        
+        bot_process = None
+        return jsonify({'success': True, 'message': 'Bot parado com sucesso!'})
+    except Exception as e:
+        bot_process = None
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/bot-status', methods=['GET'])
+def bot_status():
+    """Retorna o status atual do bot"""
+    global bot_process
+    try:
+        if bot_process is None:
+            return jsonify({'running': False})
+        
+        # Verifica se o processo ainda está ativo
+        if bot_process.poll() is None:
+            return jsonify({'running': True})
+        else:
+            bot_process = None
+            return jsonify({'running': False})
+    except Exception as e:
+        return jsonify({'running': False, 'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

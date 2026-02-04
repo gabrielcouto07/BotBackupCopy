@@ -9,10 +9,13 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [botRunning, setBotRunning] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     loadConfig();
+    checkBotStatus();
   }, []);
 
   const loadConfig = async () => {
@@ -52,12 +55,41 @@ function App() {
       const response = await axios.post(`${API_URL}/start-bot`);
       if (response.data.success) {
         setMessage({ type: 'success', text: '▶️ Bot iniciado com sucesso!' });
+        setBotRunning(true);
         setTimeout(() => setMessage({ type: '', text: '' }), 5000);
       }
     } catch (error) {
-      setMessage({ type: 'error', text: '❌ Erro ao iniciar bot: ' + error.message });
+      const errorMsg = error.response?.data?.error || error.message;
+      setMessage({ type: 'error', text: '❌ Erro ao iniciar bot: ' + errorMsg });
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleStopBot = async () => {
+    try {
+      setStopping(true);
+      setMessage({ type: '', text: '' });
+      const response = await axios.post(`${API_URL}/stop-bot`);
+      if (response.data.success) {
+        setMessage({ type: 'success', text: '⏹️ Bot parado com sucesso!' });
+        setBotRunning(false);
+        setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.message;
+      setMessage({ type: 'error', text: '❌ Erro ao parar bot: ' + errorMsg });
+    } finally {
+      setStopping(false);
+    }
+  };
+
+  const checkBotStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/bot-status`);
+      setBotRunning(response.data.running);
+    } catch (error) {
+      console.error('Erro ao verificar status do bot:', error);
     }
   };
 
@@ -415,10 +447,25 @@ function App() {
 
         {/* Ações */}
         <div className="actions">
-          <button className="btn-start" onClick={handleStartBot} disabled={starting || saving}>
+          <button 
+            className="btn-start" 
+            onClick={handleStartBot} 
+            disabled={starting || saving || stopping || botRunning}
+          >
             {starting ? '⏳ Iniciando...' : '▶️ Iniciar Bot'}
           </button>
-          <button className="btn-save" onClick={handleSave} disabled={saving || starting}>
+          <button 
+            className="btn-stop" 
+            onClick={handleStopBot} 
+            disabled={stopping || saving || starting || !botRunning}
+          >
+            {stopping ? '⏳ Parando...' : '⏹️ Parar Bot'}
+          </button>
+          <button 
+            className="btn-save" 
+            onClick={handleSave} 
+            disabled={saving || starting || stopping}
+          >
             {saving ? '💾 Salvando...' : '💾 Salvar Configurações'}
           </button>
         </div>
