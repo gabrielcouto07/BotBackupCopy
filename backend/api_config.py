@@ -4,6 +4,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import json
 import re
+import subprocess
+import os
 from pathlib import Path
 
 app = Flask(__name__)
@@ -173,6 +175,26 @@ def update_config():
 def health():
     """Verifica se a API está funcionando"""
     return jsonify({'status': 'ok'})
+
+
+@app.route('/api/start-bot', methods=['POST'])
+def start_bot():
+    """Inicia a execução do bot"""
+    try:
+        # Caminho para o arquivo principal do bot
+        bot_file = Path(__file__).parent / "run_bot.pyw"
+        
+        if not bot_file.exists():
+            return jsonify({'success': False, 'error': 'Arquivo run_bot.pyw não encontrado'}), 404
+        
+        # Inicia o bot em um processo separado
+        subprocess.Popen(['pythonw', str(bot_file)], 
+                        cwd=str(bot_file.parent),
+                        creationflags=subprocess.CREATE_NO_WINDOW)
+        
+        return jsonify({'success': True, 'message': 'Bot iniciado com sucesso!'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

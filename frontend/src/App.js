@@ -8,6 +8,7 @@ function App() {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -41,6 +42,22 @@ function App() {
       setMessage({ type: 'error', text: '❌ Erro ao salvar: ' + error.message });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleStartBot = async () => {
+    try {
+      setStarting(true);
+      setMessage({ type: '', text: '' });
+      const response = await axios.post(`${API_URL}/start-bot`);
+      if (response.data.success) {
+        setMessage({ type: 'success', text: '▶️ Bot iniciado com sucesso!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: '❌ Erro ao iniciar bot: ' + error.message });
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -398,10 +415,10 @@ function App() {
 
         {/* Ações */}
         <div className="actions">
-          <button className="btn-reload" onClick={loadConfig} disabled={saving}>
-            🔄 Recarregar
+          <button className="btn-start" onClick={handleStartBot} disabled={starting || saving}>
+            {starting ? '⏳ Iniciando...' : '▶️ Iniciar Bot'}
           </button>
-          <button className="btn-save" onClick={handleSave} disabled={saving}>
+          <button className="btn-save" onClick={handleSave} disabled={saving || starting}>
             {saving ? '💾 Salvando...' : '💾 Salvar Configurações'}
           </button>
         </div>

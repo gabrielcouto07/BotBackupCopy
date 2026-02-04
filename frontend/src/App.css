@@ -181,8 +181,8 @@
   transform: none;
 }
 
-.btn-reload {
-  background: #48dbfb;
+.btn-start {
+  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
   color: white;
   border: none;
   padding: 15px 40px;
@@ -191,11 +191,18 @@
   font-weight: 600;
   font-size: 1.1rem;
   transition: transform 0.2s, box-shadow 0.3s;
+  box-shadow: 0 4px 15px rgba(58, 123, 213, 0.4);
 }
 
-.btn-reload:hover {
+.btn-start:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(72, 219, 251, 0.4);
+  box-shadow: 0 6px 20px rgba(58, 123, 213, 0.6);
+}
+
+.btn-start:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .alert {
