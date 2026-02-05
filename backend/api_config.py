@@ -19,10 +19,18 @@ bot_process = None  # Rastreia o processo do bot
 def parse_config_file():
     """Lê o arquivo config.py e extrai as configurações"""
     if not CONFIG_FILE.exists():
+        print(f"❌ ERRO: Arquivo {CONFIG_FILE} não encontrado!")
         return {}
     
-    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-        content = f.read()
+    print(f"\n📖 Lendo arquivo: {CONFIG_FILE}")
+    
+    try:
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            content = f.read()
+        print(f"✅ Arquivo lido com sucesso ({len(content)} caracteres)")
+    except Exception as e:
+        print(f"❌ Erro ao ler arquivo: {e}")
+        return {}
     
     config = {}
     
@@ -99,10 +107,21 @@ def parse_config_file():
     group_links_match = re.search(r'GROUP_LINKS\s*=\s*\{(.*?)\}', content, re.DOTALL)
     if group_links_match:
         links_str = group_links_match.group(1)
+        print(f"\n=== DEBUG GROUP_LINKS ===")
+        print(f"Texto capturado:\n{links_str}")
+        
         # Captura strings com colchetes, hífens, emojis, etc
         links = re.findall(r'["\']([^"\']+?)["\']\s*:\s*["\']([^"\']+?)["\']', links_str)
+        
+        print(f"Links encontrados: {len(links)}")
+        for k, v in links:
+            print(f"  '{k}' -> '{v}'")
+        print(f"=========================\n")
+        
         config['GROUP_LINKS'] = {k: v for k, v in links}
-        print(f"   DEBUG: Encontrados {len(links)} links de grupos")
+    else:
+        print(f"\n⚠️ WARNING: GROUP_LINKS não encontrado no config.py!\n")
+        config['GROUP_LINKS'] = {}
     
     return config
 
