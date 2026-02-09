@@ -1,0 +1,28 @@
+# =============================================
+# Dockerfile for Bot Worker with Playwright
+# =============================================
+FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
+
+WORKDIR /app
+
+# Install additional Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY app/ ./app/
+
+# Create directories for sessions and logs
+RUN mkdir -p /app/sessions /app/logs && \
+    chmod -R 777 /app/sessions /app/logs
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    IN_DOCKER=true \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Default command: start Celery worker
+CMD ["celery", "-A", "app.worker.tasks", "worker", \
+     "--loglevel=info", \
+     "--concurrency=2", \
+     "--max-tasks-per-child=50"]

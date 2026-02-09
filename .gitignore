@@ -1,63 +1,79 @@
-# Sensíveis
-.env
-*.env
-.env.*
-credentials.json
+# ===========================
+# Root .gitignore
+# ===========================
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-dist/
-*.egg-info/
-venv/
-ENV/
-env/
-.venv/
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
 
 # Logs
 *.log
 logs/
-bot_*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
-# Temporários
-*.png
-*.jpg
-*.jpeg
-*.gif
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
 temp/
 tmp/
-downloads/
-*.tmp
-*.bak
 
-# Chrome/Playwright
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Backups
+*backup*
+*old*
+*.orig
+
+# Documentation builds (optional)
+docs/_build/
+site/
+
+# General folders to ignore
+downloads/
+uploads/
+dump/
+scratch/
+
+# Specific to this project
+BotChromeProfile/
 chrome_data/
 user_data/
-BotChromeProfile/
-.playwright/
-
-# Estado/Cache
 state_last_seen.txt
-state_*.txt
-dedup_cache.txt
-*.db
-*.sqlite
 
-# JSON grandes
-*.json
-!package.json
-ml_affiliate_network_dump.json
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-
-# OS
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Arquivos de teste
+test_*.py
+test_*.js
+*.test.local.*

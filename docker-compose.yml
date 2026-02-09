@@ -1,0 +1,172 @@
+# =============================================
+# Docker Compose for Bot SaaS Multi-Tenant
+# Development Configuration
+# =============================================
+version: '3.8'
+
+services:
+  # =============================================
+  # PostgreSQL Database
+  # =============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: bot_saas_postgres
+    environment:
+      POSTGRES_DB: bot_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================
+  # Redis (Message Queue & Cache)
+  # =============================================
+  redis:
+    image: redis:7-alpine
+    container_name: bot_saas_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================
+  # FastAPI Application
+  # =============================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: bot_saas_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bot_saas
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-change-in-production}
+      - CONFIG_ENCRYPTION_KEY=${CONFIG_ENCRYPTION_KEY:-}
+      - DEBUG=true
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro  # Hot reload in dev
+    restart: unless-stopped
+
+  # =============================================
+  # Celery Worker (Bot Execution)
+  # =============================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: bot_saas_worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bot_saas
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CONFIG_ENCRYPTION_KEY=${CONFIG_ENCRYPTION_KEY:-}
+      - SESSIONS_BASE_PATH=/app/sessions
+      - LOGS_BASE_PATH=/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    volumes:
+      - bot_sessions:/app/sessions
+      - bot_logs:/app/logs
+      - ./app:/app/app:ro
+    restart: unless-stopped
+
+  # =============================================
+  # Celery Beat (Task Scheduler)
+  # =============================================
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: bot_saas_beat
+    command: celery -A app.worker.tasks beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - worker
+    restart: unless-stopped
+
+  # =============================================
+  # Flower (Celery Monitoring) - Optional
+  # =============================================
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: bot_saas_flower
+    command: celery -A app.worker.tasks flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_BASIC_AUTH=${FLOWER_AUTH:-admin:admin}
+    depends_on:
+      - redis
+      - worker
+    restart: unless-stopped
+
+  # =============================================
+  # Frontend (React) - Optional for local dev
+  # =============================================
+  frontend:
+    build:
+      context: ./frontend-saas
+      dockerfile: Dockerfile
+    container_name: bot_saas_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - frontend
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  bot_sessions:
+    driver: local
+  bot_logs:
+    driver: local

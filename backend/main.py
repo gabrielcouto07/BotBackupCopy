@@ -44,6 +44,7 @@ from watcher import (
     get_last_message_bubble,
     has_image,
     download_last_image,
+    get_last_message_id,
 )
 
 from extractor import (
@@ -365,11 +366,10 @@ async def maybe_post_to_facebook(page_w, page_m, page_fb, last_post_time):
             logger.info(f" ⏱️ Primeira postagem do dia")
         logger.info("=" * 80)
         
-        # Rotaciona entre os grupos - cada post usa um grupo diferente
+        # Rotaciona entre os grupos
         source_group, target_group, description = CHANNEL_PAIRS[facebook_source_index]
         logger.info(f" 📋 Grupo da vez: {description} (índice {facebook_source_index})")
         
-        # Atualiza índice para o próximo grupo
         facebook_source_index = (facebook_source_index + 1) % len(CHANNEL_PAIRS)
         
         try:
@@ -391,6 +391,16 @@ async def maybe_post_to_facebook(page_w, page_m, page_fb, last_post_time):
                 return last_post_time
             
             logger.info(f" 📸 Mensagem tem imagem ✅")
+            
+            # ✅ DOWNLOAD DA IMAGEM (ERA O QUE FALTAVA!)
+            logger.info(f" 📸 Baixando imagem para Facebook...")
+            img_path = await download_last_image(page_w, DOWNLOAD_DIR, source_group)
+            if not img_path:
+                logger.error(f" ❌ Facebook: Falha ao baixar imagem")
+                logger.info("=" * 80)
+                return last_post_time
+            
+            logger.info(f" ✅ Imagem pronta: {os.path.basename(img_path)}")
             
             urls = hrefs if hrefs else extract_urls_from_text(text)
             meli_urls = filter_meli_sec_urls(urls)
@@ -422,6 +432,11 @@ async def maybe_post_to_facebook(page_w, page_m, page_fb, last_post_time):
             
             if not mapping:
                 logger.warning(f" ⚠️ Facebook: Sem link afiliado - ignorando")
+                if img_path and os.path.exists(img_path):
+                    try:
+                        os.remove(img_path)
+                    except Exception:
+                        pass
                 logger.info("=" * 80)
                 return last_post_time
             
@@ -441,8 +456,17 @@ async def maybe_post_to_facebook(page_w, page_m, page_fb, last_post_time):
             await page_fb.bring_to_front()
             await page_fb.wait_for_timeout(500)
             
-            logger.info(f" 📤 Postando no Facebook...")
-            ok = await send_facebook_post(page_fb, FACEBOOK_PAGE_URL, final_text)
+            logger.info(f" 📤 Postando no Facebook COM IMAGEM...")
+            # ✅ AGORA ENVIA A IMAGEM
+            ok = await send_facebook_post(page_fb, FACEBOOK_PAGE_URL, final_text, image_path=img_path)
+            
+            # Cleanup da imagem
+            if img_path and os.path.exists(img_path):
+                try:
+                    os.remove(img_path)
+                    logger.info(f" 🗑️ Imagem temporária deletada")
+                except Exception as e:
+                    logger.warning(f" ⚠️ Erro ao deletar imagem: {e}")
             
             if ok:
                 logger.info(" ✅✅✅ Facebook: SUCESSO!")
@@ -513,7 +537,8 @@ async def monitoring_loop(page_w, page_m, page_fb):
                 text, hrefs = await extract_last_message_text_and_urls(page_w)
                 
                 if text or hrefs:
-                    msg_id = compute_msg_id(text, hrefs)
+                    dom_id = await get_last_message_id(page_w)
+                    msg_id = dom_id or compute_msg_id(text, hrefs)
                     last_seen_id = last_seen_dict.get(source_group)
                     
                     if not last_seen_id:

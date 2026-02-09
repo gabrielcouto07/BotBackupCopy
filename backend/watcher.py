@@ -64,8 +64,7 @@ async def extract_last_message_text_and_urls(page) -> tuple[str, list[str]]:
     hrefs = []
     try:
         hrefs = await last.locator("a[href^='http']").evaluate_all(
-            "els => els.map(a => a.getAttribute('href')).filter(Boolean)",
-            timeout=5000,
+            "els => els.map(a => a.getAttribute('href')).filter(Boolean)"
         )
         hrefs = [h.strip() for h in hrefs if isinstance(h, str) and h.strip()]
     except Exception:
@@ -207,6 +206,21 @@ def compute_msg_id(text: str, urls: list[str]) -> str:
     """Gera hash único para identificar a mensagem"""
     combined = f"{text}||{'|'.join(urls)}"
     return hashlib.sha256(combined.encode("utf-8")).hexdigest()
+
+
+async def get_last_message_id(page: Page) -> str:
+    """Obtém um ID estável da última mensagem pelo DOM (data-id/pre-plain-text)."""
+    last = await get_last_message_bubble(page)
+    if last is None:
+        return ""
+    try:
+        msg_id = await last.get_attribute("data-id")
+        if msg_id:
+            return msg_id.strip()
+        pre = await last.get_attribute("data-pre-plain-text")
+        return (pre or "").strip()
+    except Exception:
+        return ""
 
 
 async def has_image(bubble: Locator | None) -> bool:

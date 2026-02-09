@@ -35,6 +35,9 @@ ML_PRODUCT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Regex simples para capturar URLs no texto
+URL_RE = re.compile(r"https?://[^\s)\]>]+", re.IGNORECASE)
+
 
 def _load_cache() -> dict:
     """Carrega cache do disco"""
@@ -109,14 +112,62 @@ def extract_product_ids_from_urls(urls: list[str]) -> list[str]:
     return product_ids
 
 
+def extract_product_ids_from_text(text: str) -> list[str]:
+    """Tenta extrair IDs diretamente do texto quando não há URLs explícitas"""
+    if not text:
+        return []
+
+    urls = URL_RE.findall(text)
+    product_ids = extract_product_ids_from_urls(urls)
+
+    if product_ids:
+        return product_ids
+
+    # Fallback: buscar padrões diretamente no texto
+    product_ids = []
+    seen = set()
+
+    for match in ML_SEC_RE.finditer(text):
+        pid = f"ML_SEC:{match.group(1)}"
+        if pid not in seen:
+            seen.add(pid)
+            product_ids.append(pid)
+
+    for match in ML_PRODUCT_RE.finditer(text):
+        pid = f"ML:{match.group(1)}"
+        if pid not in seen:
+            seen.add(pid)
+            product_ids.append(pid)
+
+    for match in AMAZON_ASIN_RE.finditer(text):
+        pid = f"AMAZON:{match.group(1).upper()}"
+        if pid not in seen:
+            seen.add(pid)
+            product_ids.append(pid)
+
+    for match in AMAZON_ASIN_FALLBACK_RE.finditer(text):
+        asin = match.group(1).upper()
+        if len(asin) == 10 and asin.isalnum():
+            pid = f"AMAZON:{asin}"
+            if pid not in seen:
+                seen.add(pid)
+                product_ids.append(pid)
+
+    return product_ids
+
+
 def is_duplicate(target_group: str, text: str, urls: list[str]) -> bool:
     """Verifica se o produto já foi enviado recentemente"""
     if not DEDUP_ENABLED:
         return False
-    
-    product_ids = extract_product_ids_from_urls(urls)
-    
+
+    product_ids = extract_product_ids_from_urls(urls or [])
+
     if not product_ids:
+        product_ids = extract_product_ids_from_text(text or "")
+
+    if not product_ids:
+        logger.info("   ⚠️ Dedup: nenhum ID de produto encontrado")
         return False
     
     cache = _load_cache()
@@ -151,10 +202,14 @@ def mark_as_sent(target_group: str, text: str, urls: list[str]):
     """Marca os produtos da mensagem como enviados"""
     if not DEDUP_ENABLED:
         return
-    
-    product_ids = extract_product_ids_from_urls(urls)
-    
+
+    product_ids = extract_product_ids_from_urls(urls or [])
+
     if not product_ids:
+        product_ids = extract_product_ids_from_text(text or "")
+
+    if not product_ids:
+        logger.info("   ⚠️ Dedup: nada para marcar (ID não encontrado)")
         return
     
     cache = _load_cache()
